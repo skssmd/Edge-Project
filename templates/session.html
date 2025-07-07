@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>{{ data.name }} | Session View</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #111;
+      color: #eee;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+   aside {
+  width: 240px;
+  background: linear-gradient(to bottom, #1f1f1f, #151515);
+  padding: 20px;
+  overflow-y: auto;
+  border-right: 1px solid #2a2a2a;
+  box-shadow: inset -1px 0 0 #000;
+  transition: background 0.3s;
+}
+
+aside h2 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #ccc;
+  margin-bottom: 16px;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid #333;
+  padding-bottom: 6px;
+}
+
+aside ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+aside li {
+  margin-bottom: 10px;
+    color: #7a7a7a;
+}
+
+aside a {
+  display: block;
+  color: #bdbdbd;
+  background: #1f1f1f;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  text-decoration: none;
+  transition: background 0.2s, color 0.2s;
+}
+
+aside a:hover {
+  background: #00bcd4;
+  color: #111;
+  text-decoration: none;
+}
+aside::-webkit-scrollbar {
+  width: 2px;
+}
+aside::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 3px;
+}
+
+
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+      overflow-y: auto;
+    }
+
+    .transcript {
+      flex: 1;
+      overflow-y: auto;
+      margin-bottom: 60px;
+    }
+
+    .transcript h3 {
+      font-size: 20px;
+      margin-bottom: 10px;
+    }
+
+    .segment {
+  position: relative;
+  padding: 8px;
+  margin-bottom: 5px;
+  border-radius: 5px;
+  background: #222;
+  transition: background 0.2s;
+  cursor: pointer;
+}
+
+.segment:hover {
+  background: #444;
+}
+
+.jump-btn {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  background: #00aaff;
+  color: white;
+  border: none;
+  padding: 3px 8px;
+  border-radius: 3px;
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  user-select: none;
+}
+
+.segment:hover .jump-btn {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+
+    .segment.active {
+      background: #ffde59;
+      color: #000;
+    }
+
+    footer {
+      position: fixed;
+      bottom: 0;
+      left: 240px;
+      right: 0;
+      background: #000;
+      padding: 10px 20px;
+      border-top: 1px solid #333;
+      z-index: 999;
+    }
+
+    audio {
+      width: 100%;
+      outline: none;
+    }
+
+    @media (max-width: 768px) {
+      aside {
+        display: none;
+      }
+      footer {
+        left: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <aside>
+    <h2>Sessions</h2>
+    <li><a href="/" style="color: #0af;">+ Transcribe New</a></li>
+    <ul id="session-list">
+      <!-- Filled via JavaScript -->
+    </ul>
+  </aside>
+
+  <!-- Main Content -->
+  <main>
+    <h1>{{ data.name }}</h1>
+    <div class="transcript" id="transcript">
+      <h3>Transcript:</h3>
+     {% for seg in data.segments %}
+  <div class="segment" data-start="{{ seg.start }}" data-end="{{ seg.end }}">
+    [{{ seg.start|round(2) }}s - {{ seg.end|round(2) }}s] {{ seg.text }}
+    <button class="jump-btn" title="Jump to track">▶ Jump</button>
+  </div>
+{% endfor %}
+
+    </div>
+  </main>
+
+  <!-- Audio Player at Bottom -->
+  <footer>
+    <audio id="player" controls>
+      <source src="{{ data.audio_url }}" type="audio/mpeg">
+      Your browser does not support audio playback.
+    </audio>
+  </footer>
+
+  <!-- JS Logic -->
+  <script>
+ const player = document.getElementById("player");
+const segments = document.querySelectorAll(".segment");
+
+let currentActiveIndex = -1; // tracks index of current active segment
+
+player.ontimeupdate = () => {
+  const time = player.currentTime;
+  let newActiveIndex = -1;
+
+  segments.forEach((seg, i) => {
+    const start = parseFloat(seg.dataset.start);
+    const end = parseFloat(seg.dataset.end);
+    const isActive = time >= start && time <= end;
+    seg.classList.toggle("active", isActive);
+    if (isActive) {
+      newActiveIndex = i;
+    }
+  });
+
+  // Only scroll if active segment changed
+  if (newActiveIndex !== -1 && newActiveIndex !== currentActiveIndex) {
+    segments[newActiveIndex].scrollIntoView({ behavior: "smooth", block: "center" });
+    currentActiveIndex = newActiveIndex;
+  }
+};
+
+// Add jump button click handlers
+segments.forEach(seg => {
+  const btn = seg.querySelector(".jump-btn");
+  const startTime = parseFloat(seg.dataset.start);
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation(); // prevent parent handlers
+    player.currentTime = startTime;
+    player.play();
+  });
+});
+
+    // Fetch session list
+    fetch("/api/sessions")
+      .then(res => res.json())
+      .then(data => {
+        const list = document.getElementById("session-list");
+        data.forEach(session => {
+          const li = document.createElement("li");
+          li.innerHTML = `<a href="/session/${session.session_id}">${session.name}</a>`;
+          list.appendChild(li);
+        });
+      });
+  </script>
+</body>
+</html>
