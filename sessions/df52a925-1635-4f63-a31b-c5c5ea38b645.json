@@ -1,0 +1,34 @@
+{
+  "session_id": "df52a925-1635-4f63-a31b-c5c5ea38b645",
+  "name": "Record (online-voice-recorder.com).mp3",
+  "audio_url": "/uploads/Record (online-voice-recorder.com).mp3",
+  "text": "You You",
+  "segments": [
+    {
+      "id": 0,
+      "start": 24.8,
+      "end": 26.2,
+      "text": "You",
+      "words": [
+        {
+          "start": 24.8,
+          "end": 26.2,
+          "word": "You"
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "start": 31.94,
+      "end": 32.0,
+      "text": "You",
+      "words": [
+        {
+          "start": 31.94,
+          "end": 32.64,
+          "word": "You"
+        }
+      ]
+    }
+  ]
+}

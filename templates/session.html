@@ -19,60 +19,61 @@
       overflow: hidden;
     }
 
-   aside {
-  width: 240px;
-  background: linear-gradient(to bottom, #1f1f1f, #151515);
-  padding: 20px;
-  overflow-y: auto;
-  border-right: 1px solid #2a2a2a;
-  box-shadow: inset -1px 0 0 #000;
-  transition: background 0.3s;
-}
+    aside {
+      width: 240px;
+      background: linear-gradient(to bottom, #1f1f1f, #151515);
+      padding: 20px;
+      overflow-y: auto;
+      border-right: 1px solid #2a2a2a;
+      box-shadow: inset -1px 0 0 #000;
+      transition: background 0.3s;
+    }
 
-aside h2 {
-  font-size: 16px;
-  font-weight: 600;
-  color: #ccc;
-  margin-bottom: 16px;
-  letter-spacing: 0.5px;
-  border-bottom: 1px solid #333;
-  padding-bottom: 6px;
-}
+    aside h2 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #ccc;
+      margin-bottom: 16px;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid #333;
+      padding-bottom: 6px;
+    }
 
-aside ul {
-  list-style: none;
-  padding-left: 0;
-}
+    aside ul {
+      list-style: none;
+      padding-left: 0;
+    }
 
-aside li {
-  margin-bottom: 10px;
-    color: #7a7a7a;
-}
+    aside li {
+      margin-bottom: 10px;
+      color: #7a7a7a;
+    }
 
-aside a {
-  display: block;
-  color: #bdbdbd;
-  background: #1f1f1f;
-  padding: 8px 12px;
-  border-radius: 6px;
-  font-size: 13px;
-  text-decoration: none;
-  transition: background 0.2s, color 0.2s;
-}
+    aside a {
+      display: block;
+      color: #bdbdbd;
+      background: #1f1f1f;
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      text-decoration: none;
+      transition: background 0.2s, color 0.2s;
+    }
 
-aside a:hover {
-  background: #00bcd4;
-  color: #111;
-  text-decoration: none;
-}
-aside::-webkit-scrollbar {
-  width: 2px;
-}
-aside::-webkit-scrollbar-thumb {
-  background: #333;
-  border-radius: 3px;
-}
+    aside a:hover {
+      background: #00bcd4;
+      color: #111;
+      text-decoration: none;
+    }
 
+    aside::-webkit-scrollbar {
+      width: 2px;
+    }
+
+    aside::-webkit-scrollbar-thumb {
+      background: #333;
+      border-radius: 3px;
+    }
 
     main {
       flex: 1;
@@ -94,43 +95,31 @@ aside::-webkit-scrollbar-thumb {
     }
 
     .segment {
-  position: relative;
-  padding: 8px;
-  margin-bottom: 5px;
-  border-radius: 5px;
-  background: #222;
-  transition: background 0.2s;
-  cursor: pointer;
-}
+      margin-bottom: 15px;
+    }
 
-.segment:hover {
-  background: #444;
-}
+    .segment-range {
+      display: block;
+      font-size: 13px;
+      color: #888;
+      margin-bottom: 4px;
+    }
 
-.jump-btn {
-  position: absolute;
-  top: 6px;
-  right: 8px;
-  background: #00aaff;
-  color: white;
-  border: none;
-  padding: 3px 8px;
-  border-radius: 3px;
-  font-size: 12px;
-  cursor: pointer;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.2s;
-  user-select: none;
-}
+    .word {
+      display: inline-block;
+      margin-right: 4px;
+      padding: 2px 4px;
+      border-radius: 3px;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+    }
 
-.segment:hover .jump-btn {
-  opacity: 1;
-  pointer-events: auto;
-}
+    .word:hover {
+      background: #0af;
+      color: #000;
+    }
 
-
-    .segment.active {
+    .word.active {
       background: #ffde59;
       color: #000;
     }
@@ -155,6 +144,7 @@ aside::-webkit-scrollbar-thumb {
       aside {
         display: none;
       }
+
       footer {
         left: 0;
       }
@@ -177,13 +167,20 @@ aside::-webkit-scrollbar-thumb {
     <h1>{{ data.name }}</h1>
     <div class="transcript" id="transcript">
       <h3>Transcript:</h3>
-     {% for seg in data.segments %}
-  <div class="segment" data-start="{{ seg.start }}" data-end="{{ seg.end }}">
-    [{{ seg.start|round(2) }}s - {{ seg.end|round(2) }}s] {{ seg.text }}
-    <button class="jump-btn" title="Jump to track">▶ Jump</button>
-  </div>
-{% endfor %}
-
+      {% for seg in data.segments %}
+        <div class="segment">
+          <span class="segment-range">[{{ seg.start|round(2) }}s - {{ seg.end|round(2) }}s]</span>
+          {% for word in seg.words %}
+            <span 
+              class="word" 
+              data-start="{{ word.start }}" 
+              data-end="{{ word.end }}"
+              title="{{ word.word }}">
+              {{ word.word }}
+            </span>
+          {% endfor %}
+        </div>
+      {% endfor %}
     </div>
   </main>
 
@@ -197,44 +194,41 @@ aside::-webkit-scrollbar-thumb {
 
   <!-- JS Logic -->
   <script>
- const player = document.getElementById("player");
-const segments = document.querySelectorAll(".segment");
+    const player = document.getElementById("player");
+    const words = document.querySelectorAll(".word");
 
-let currentActiveIndex = -1; // tracks index of current active segment
+    let activeWord = null;
 
-player.ontimeupdate = () => {
-  const time = player.currentTime;
-  let newActiveIndex = -1;
+    player.ontimeupdate = () => {
+      const time = player.currentTime;
+      let newActive = null;
 
-  segments.forEach((seg, i) => {
-    const start = parseFloat(seg.dataset.start);
-    const end = parseFloat(seg.dataset.end);
-    const isActive = time >= start && time <= end;
-    seg.classList.toggle("active", isActive);
-    if (isActive) {
-      newActiveIndex = i;
-    }
-  });
+      words.forEach(word => {
+        const start = parseFloat(word.dataset.start);
+        const end = parseFloat(word.dataset.end);
+        const isActive = time >= start && time <= end;
+        word.classList.toggle("active", isActive);
+        if (isActive && !newActive) {
+          newActive = word;
+        }
+      });
 
-  // Only scroll if active segment changed
-  if (newActiveIndex !== -1 && newActiveIndex !== currentActiveIndex) {
-    segments[newActiveIndex].scrollIntoView({ behavior: "smooth", block: "center" });
-    currentActiveIndex = newActiveIndex;
-  }
-};
+      if (newActive && newActive !== activeWord) {
+        newActive.scrollIntoView({ behavior: "smooth", block: "center" });
+        activeWord = newActive;
+      }
+    };
 
-// Add jump button click handlers
-segments.forEach(seg => {
-  const btn = seg.querySelector(".jump-btn");
-  const startTime = parseFloat(seg.dataset.start);
-  btn.addEventListener("click", (e) => {
-    e.stopPropagation(); // prevent parent handlers
-    player.currentTime = startTime;
-    player.play();
-  });
-});
+    // Clicking a word jumps to it
+    words.forEach(word => {
+      word.addEventListener("click", () => {
+        const startTime = parseFloat(word.dataset.start);
+        player.currentTime = startTime;
+        player.play();
+      });
+    });
 
-    // Fetch session list
+    // Populate session list
     fetch("/api/sessions")
       .then(res => res.json())
       .then(data => {

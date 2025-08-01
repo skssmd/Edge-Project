@@ -1,8 +1,11 @@
 from flask import Flask, render_template, request, send_from_directory, jsonify, redirect, url_for
-import whisperx
+from faster_whisper import WhisperModel
 import os
 import uuid
 import json
+import tempfile
+import shutil
+import subprocess
 
 app = Flask(__name__)
 
@@ -11,34 +14,68 @@ SESSION_FOLDER = "sessions"
 
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(SESSION_FOLDER, exist_ok=True)
+def convert_to_wav(input_path, output_path):
+    """Convert any audio format to 16kHz mono WAV using ffmpeg."""
+    command = [
+        "ffmpeg", "-i", input_path, "-ar", "16000", "-ac", "1",
+        "-y", output_path
+    ]
+    subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
 
 @app.route("/", methods=["GET", "POST"])
 def index():
     if request.method == "POST":
-        audio = request.files["audio"]
-        model_size = request.form["model_size"]
-        device = request.form["device"]
-        compute_type = request.form["compute_type"]
+        audio = request.files.get("audio")
+        model_size = request.form.get("model_size", "base")
+        device = request.form.get("device", "cpu")
+        compute_type = request.form.get("compute_type", "int8")
 
         if audio:
+            # Generate session ID and paths
             session_id = str(uuid.uuid4())
             filename = audio.filename
-            audio_path = os.path.join(UPLOAD_FOLDER, filename)
-            audio.save(audio_path)
+            original_path = os.path.join(UPLOAD_FOLDER, filename)
+            audio.save(original_path)
 
-            model = whisperx.load_model(model_size, device=device, compute_type=compute_type)
-            audio_data = whisperx.load_audio(audio_path)
-            result = model.transcribe(audio_data)
+            # Convert to 16kHz mono WAV for faster-whisper compatibility
+            wav_path = os.path.join(tempfile.gettempdir(), f"{session_id}.wav")
+            convert_to_wav(original_path, wav_path)
 
-            data = {
+            # Load model and transcribe
+            model = WhisperModel(model_size, device=device, compute_type=compute_type)
+            segments, _ = model.transcribe(wav_path, word_timestamps=True)
+
+            # Build OpenAI-style verbose_json
+            segment_data = []
+            full_text = ""
+            for i, segment in enumerate(segments):
+                text = segment.text.strip()
+                full_text += text + " "
+                segment_data.append({
+                    "id": i,
+                    "start": round(segment.start, 2),
+                    "end": round(segment.end, 2),
+                    "text": text,
+                    "words": [
+                        {
+                            "start": round(w.start, 2),
+                            "end": round(w.end, 2),
+                            "word": w.word.strip()
+                        } for w in segment.words or []
+                    ]
+                })
+
+            result = {
                 "session_id": session_id,
                 "name": filename,
                 "audio_url": f"/uploads/{filename}",
-                "segments": result["segments"]
+                "text": full_text.strip(),  # ✅ Top-level text
+                "segments": segment_data
             }
 
+            # Save session file
             with open(os.path.join(SESSION_FOLDER, f"{session_id}.json"), "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=2)
+                json.dump(result, f, indent=2)
 
             return redirect(url_for("session_view", session_id=session_id))
 
@@ -57,7 +94,6 @@ def session_view(session_id):
 def uploaded_file(filename):
     return send_from_directory(UPLOAD_FOLDER, filename)
 
-# ✅ API to List All Sessions
 @app.route("/api/sessions", methods=["GET"])
 def list_sessions():
     sessions = []
