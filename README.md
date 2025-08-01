@@ -1,6 +1,6 @@
 # Transcriber
 
-A Python-based audio transcription tool using WhisperX.
+A Python-based audio transcription tool using Faster-Whisper.
 
 ## Setup Instructions
 
