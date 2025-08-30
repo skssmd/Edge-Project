@@ -7,8 +7,8 @@ A Python-based audio transcription tool using Faster-Whisper.
 1. **Clone the repository**
 
 ```bash
-git clone https://github.com/skssmd/transcriber.git
-cd transcriber
+git clone https://github.com/skssmd/Edge-Project.git
+cd Edge-Project
 ```
 2. **Create and activate a virtual environment**
 
